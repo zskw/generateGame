@@ -1,295 +1,330 @@
 class Generate {
   sampleCount;
   percent;
+  outSamples = [];
   constructor(sampleCount, percent) {
     this.sampleCount = sampleCount;
     this.percent = percent;
   }
-  stroop = (colors) => {
-    let outSamples = [];
-    let colorIndex = 0;
-    let incCount = Math.floor(this.sampleCount * (this.percent / 100));
 
-    const nextIndexColor = (colorI) => {
-      colorI++;
-      if (colorI >= colors.length) colorI = 0;
-      return colorI;
-    };
-    const setIncong = (data) => {
-      colorIndex = 0;
-      for (let i = 0; i < incCount; i++) {
-        data[i].type = "I";
-        colorIndex = nextIndexColor(colorIndex);
-        while (data[i].colorName === colors[colorIndex].color)
-          colorIndex = nextIndexColor(colorIndex);
-        data[i].colorCode = colors[colorIndex].codeColor;
-        data[i].colorName = colors[colorIndex].color;
-      }
-      outSamples = data.sort(() => Math.random() - 0.5);
-    };
-    const setSample = () => {
-      let outSampleTemp = [];
-      for (let i = 0; i < this.sampleCount; i++) {
-        if (colorIndex >= colors.length) {
-          colorIndex = 1;
-        } else {
-          colorIndex = colorIndex + 1;
-        }
-
-        let tempObject = {
-          type: "C",
-          colorText: colors[colorIndex - 1].text,
-          colorName: colors[colorIndex - 1].color,
-          colorCode: colors[colorIndex - 1].codeColor,
-        };
-        outSampleTemp.push(tempObject);
-      }
-      outSamples = outSampleTemp.sort(() => Math.random() - 0.5);
-      setIncong(outSamples);
-    };
-
-    setSample();
-
-    return outSamples;
-  };
-
-  nback = (samples, nth,tryNumber) => {
-    let cntTarget = 0;
+  #setSampleNback = (samplesArray, nthNumber, maxTry) => {
+    let outSetSample = [];
     let sampleIndex = 0;
-    let outSample = [];
+    for (let i = 0; i < this.sampleCount; i++) {
+      if (sampleIndex >= samplesArray.length) {
+        sampleIndex = 1;
+      } else {
+        sampleIndex = sampleIndex + 1;
+      }
+
+      let nbackObject = {
+        text: samplesArray[sampleIndex - 1],
+        targetSample: 0,
+      };
+      outSetSample.push(nbackObject);
+    }
+
+    outSetSample = outSetSample.sort(() => Math.random() - 0.5);
+    this.#setTargetNback(outSetSample, nthNumber, maxTry);
+  };
+  #setTargetNback = (setSamplesArray, nthNumber, maxTry) => {
     let target = Math.floor(this.sampleCount * (this.percent / 100));
     let distance = Math.ceil(this.sampleCount / target);
-
-
-    const setSample = () => {
-      let outSampleTemp = [];
-      for (let i = 0; i < this.sampleCount; i++) {
-        if (sampleIndex >= samples.length) {
-          sampleIndex = 1;
-        } else {
-          sampleIndex = sampleIndex + 1;
-        }
-
-        let tempObject = { text: samples[sampleIndex - 1], targetSample: 0 };
-        outSampleTemp.push(tempObject);
+    for (let i = nthNumber; i < this.sampleCount - distance; i += distance) {
+      if (setSamplesArray[i] !== setSamplesArray[i + nthNumber]) {
+        setSamplesArray[i + nthNumber].text = setSamplesArray[i].text;
+        setSamplesArray[i + nthNumber].targetSample = 1;
       }
-
-      outSample = outSampleTemp.sort(() => Math.random() - 0.5);
-      setTarget(outSample);
-    };
-
-    const setTarget = (data) => {
-      sampleIndex = 0;
-      for (let i = nth; i < this.sampleCount - distance; i += distance) {
-        if (data[i] !== outSample[i + nth]) {
-          data[i + nth].text = data[i].text;
-          data[i + nth].targetSample = 1;
-        }
+    }
+    this.#checkCountTarget(setSamplesArray, nthNumber, maxTry);
+  };
+  #countTargetNback = (nbackArray, nthNumber) => {
+    let cntTarget = 0;
+    for (let i = nbackArray.length - 1; i >= nthNumber; i--) {
+      if (nbackArray[i].text === nbackArray[i - nthNumber].text) {
+        nbackArray[i].targetSample = 1;
+        cntTarget = cntTarget + 1;
       }
-      check(data);
+    }
+    return cntTarget;
+  };
+  #checkCountTarget = (setTargetArray, nthNumber, maxTry) => {
+    return new Promise((resolve) => {
+      let targetSoFar = this.#countTargetNback(setTargetArray, nthNumber);
+      let countTryNumber = 0;
+      let target = Math.floor(this.sampleCount * (this.percent / 100));
+      let distance = Math.ceil(this.sampleCount / target);
+      let telo = target * 0.05;
+      while (telo < Math.abs(target - targetSoFar)) {
+        targetSoFar = this.#countTargetNback(setTargetArray, nthNumber);
 
-    };
-    const countTarget = (outArray2) => {
-      cntTarget = 0;
-      for (let i = outArray2.length - 1; i >= nth; i--) {
-        if (outArray2[i].text === outArray2[i - nth].text) {
-          outArray2[i].targetSample = 1;
-          cntTarget = cntTarget + 1;
-        }
-      }
-
-      return cntTarget;
-    };
-    const check = (outArray) => {
-      let t = countTarget(outArray);
-      let ttryNumber=0;
-      while (t !== target) {
-        t = countTarget(outArray);
-        if (t > target) {
-          let res = t - target;
+        if (targetSoFar > target) {
+          let goalDifference = targetSoFar - target;
           let startPoint;
-          if (res < 0) res = res * -1;
-          while (res) {
+          while (goalDifference) {
             startPoint = 0;
-            let temp;
-            temp = deleteTarget(outArray, startPoint);
-            outArray = [];
-            outArray = temp;
-            res = res - 1;
+            setTargetArray = this.#deleteTargetNback(
+              setTargetArray,
+              startPoint,
+              nthNumber
+            );
+            goalDifference = goalDifference - 1;
           }
-
         }
-        if (t < target) {
-          let res = target - t;
+        if (targetSoFar < target) {
+          let goalDifference = target - targetSoFar;
           let startPoint = 0;
-          let startIndex=0;
-         
-          while (res) {
-            let temp;
+          let startIndex = 0;
 
-            if(ttryNumber>tryNumber)
-            throw new Error("max try");
+          while (goalDifference) {
+            let addTargetArray;
 
-            if (startPoint === this.sampleCount - 1){
+            if (countTryNumber > maxTry) {
+              targetSoFar = this.#countTargetNback(setTargetArray, nthNumber);
+              return resolve(setTargetArray);
+            }
+
+            if (startPoint === this.sampleCount - 1) {
               startPoint = startIndex;
               startIndex++;
-              if(startIndex>=this.sampleCount)
-              startIndex=0;
-            } 
-            if (startPoint + nth < this.sampleCount) {
-              temp = addTarget(outArray, startPoint);
-              outArray = [];
-              outArray = temp;
-              res = res - 1;
+              if (startIndex >= this.sampleCount) {
+                startIndex = 0;
+              }
+            }
+            if (startPoint + nthNumber < this.sampleCount) {
+              addTargetArray = this.#addTargetNback(
+                setTargetArray,
+                startPoint,
+                nthNumber
+              );
+              if (addTargetArray.length > 0) {
+                setTargetArray = addTargetArray;
+                goalDifference = goalDifference - 1;
+              }
+
               startPoint = startPoint + distance;
-              ttryNumber++;
             }
+            countTryNumber = countTryNumber + 1;
           }
-
         }
       }
-      outSample = outArray;
-    };
-    const deleteTarget = (outArray3, startPoint) => {
-      for (let i = startPoint; i < this.sampleCount; i++) {
-        if (outArray3[i].text === outArray3[i + nth].text) {
-          outArray3[i + nth].targetSample = 0;
-          if (i < nth) {
-            if (nth > 1) outArray3[i].text = outArray3[i + 1].text;
-            else {
-              if (outArray3[i].text === 9) outArray3[i].text = 8;
-              else if (outArray3[i].text === 1) outArray3[i].text = 2;
-              else outArray3[i].text = outArray3[i].text + 1;
-            }
+      this.outSamples = setTargetArray;
+      resolve(this.outSamples);
+    });
+  };
+  #deleteTargetNback = (additionalTargets, startPoint, nthNumber) => {
+    for (let i = startPoint; i < this.sampleCount; i++) {
+      if (additionalTargets[i].text === additionalTargets[i + nthNumber].text) {
+        additionalTargets[i + nthNumber].targetSample = 0;
+        if (i < nthNumber) {
+          if (nthNumber > 1) {
+            additionalTargets[i].text = additionalTargets[i + 1].text;
           } else {
-            let tempRes = outArray3[i - nth].text - outArray3[i].text;
-
-            if (tempRes > 0) outArray3[i].text = tempRes;
-            else if (tempRes === 0) {
-              if (tempRes === 9) tempRes = 8;
-              else if (tempRes === 1) tempRes = 2;
-              outArray3[i].text = tempRes;
-            } else outArray3[i].text = -1 * tempRes;
-          }
-
-          return outArray3;
-        }
-      }
-    };
-    const addTarget = (outArray4, startPoint) => {
-
-      for (let i = startPoint; i < this.sampleCount - nth; i++) {
-        if (outArray4[i].text !== outArray4[i + nth].text) {
-          if (i + nth + nth <= this.sampleCount - 1) {
-            if (outArray4[i + nth].text !== outArray4[i + nth + nth].text) {
-              outArray4[i + nth].text = outArray4[i].text;
-              outArray4[i + nth].targetSample = 1;
-              return outArray4;
+            if (additionalTargets[i].text === 9) {
+              additionalTargets[i].text = 8;
+            } else if (additionalTargets[i].text === 1) {
+              additionalTargets[i].text = 2;
+            } else {
+              additionalTargets[i].text = additionalTargets[i].text + 1;
             }
           }
-          else
-          {
-            outArray4[i + nth].text = outArray4[i].text;
-            outArray4[i + nth].targetSample = 1;
-            return outArray4;
+        } else {
+          let tempRes =
+            additionalTargets[i - nthNumber].text - additionalTargets[i].text;
+
+          if (tempRes > 0) {
+            additionalTargets[i].text = tempRes;
+          } else if (tempRes === 0) {
+            if (additionalTargets[i - nthNumber].text === 9) {
+              tempRes = 8;
+            } else if (additionalTargets[i - nthNumber].text === 1) {
+              tempRes = 2;
+            }
+            additionalTargets[i].text = tempRes;
+          } else {
+            additionalTargets[i].text = -1 * tempRes;
           }
         }
+
+        return additionalTargets;
       }
-      return outArray4;
-    };
-    setSample();
-    return outSample;
-  };
-
-  cpt = (samples, target) => {
-    let outSamples = [];
-    let targetIndex = 0;
-    let incCount = Math.floor(this.sampleCount * (this.percent / 100));
-
-    const nextTargetIndex = (targetI) => {
-      targetI++;
-      if (targetI >= target.length) targetI = 0;
-      return targetI;
-    };
-
-    const setSample = () => {
-      let outSampleTemp = [];
-      for (let i = 0; i < this.sampleCount; i++) {
-        if (targetIndex >= samples.length) {
-          targetIndex = 1;
-        } else {
-          targetIndex = targetIndex + 1;
-        }
-
-        let tempObject = {
-          imageIndex: samples[targetIndex - 1],
-          targetSample: 0,
-        };
-        outSampleTemp.push(tempObject);
-      }
-      outSamples = outSampleTemp.sort(() => Math.random() - 0.5);
-      setTarget(outSamples);
-    };
-    const setTarget = (data) => {
-      targetIndex = 0;
-      for (let i = 0; i < incCount; i++) {
-        targetIndex = nextTargetIndex(targetIndex);
-        data[i].imageIndex = target[targetIndex];
-        data[i].targetSample = 1;
-      }
-      outSamples = data.sort(() => Math.random() - 0.5);
-    };
-    let intersectionArray = samples.filter((x) => target.includes(x));
-    if (intersectionArray.length === 0) {
-      setSample();
-    } else throw new Error("samples and target have intersection!");
-    return outSamples;
-  };
-
-  gonogo = (samples, target) => {
-    let outSamples = [];
-    let targetIndex = 0;
-    let incCount = Math.floor(this.sampleCount * (this.percent / 100));
-
-    const nextTargetIndex = (targetI) => {
-      targetI++;
-      if (targetI >= target.length) targetI = 0;
-      return targetI;
-    };
-    const setSample = () => {
-      let outSampleTemp = [];
-      for (let i = 0; i < this.sampleCount; i++) {
-        if (targetIndex >= samples.length) {
-          targetIndex = 1;
-        } else {
-          targetIndex = targetIndex + 1;
-        }
-
-        let tempObject = { text: samples[targetIndex - 1], targetSample: 0 };
-        outSampleTemp.push(tempObject);
-      }
-      outSamples = outSampleTemp.sort(() => Math.random() - 0.5);
-      setTarget(outSamples);
-    };
-
-    const setTarget = (data) => {
-      targetIndex = 0;
-      for (let i = 0; i < incCount; i++) {
-        targetIndex = nextTargetIndex(targetIndex);
-        data[i].text = target[targetIndex];
-        data[i].targetSample = 1;
-      }
-      outSamples = data.sort(() => Math.random() - 0.5);
-    };
-
-    let intersectionArray = samples.filter((x) => target.includes(x));
-    if (intersectionArray.length === 0) {
-      setSample();
-    } else {
-      throw new Error("samples and target have intersection!");
     }
-    return outSamples;
+  };
+  #addTargetNback = (lessTargetArray, startPoint, nthNumber) => {
+    for (let i = startPoint; i < this.sampleCount - nthNumber; i++) {
+      if (lessTargetArray[i].text !== lessTargetArray[i + nthNumber].text) {
+        if (i + nthNumber + nthNumber <= this.sampleCount - 1) {
+          if (
+            lessTargetArray[i + nthNumber].text !==
+            lessTargetArray[i + nthNumber + nthNumber].text
+          ) {
+            lessTargetArray[i + nthNumber].text = lessTargetArray[i].text;
+            lessTargetArray[i + nthNumber].targetSample = 1;
+            return lessTargetArray;
+          }
+        } else {
+          lessTargetArray[i + nthNumber].text = lessTargetArray[i].text;
+          lessTargetArray[i + nthNumber].targetSample = 1;
+          return lessTargetArray;
+        }
+      }
+    }
+    return [];
+  };
+  nback = (samples, nth, tryNumber) => {
+    return new Promise((resolve, reject) => {
+      if (samples.length !== 0) {
+        if (this.percent > 60) {
+          this.percent = 60;
+        }
+        this.#setSampleNback(samples, nth, tryNumber);
+        resolve(this.outSamples);
+      } else {
+        reject(new Error("array of samples is empty!"));
+      }
+    });
+  };
+
+  #nextIndexColor = (colorI, colorsArray) => {
+    colorI++;
+    if (colorI >= colorsArray.length) {
+      colorI = 0;
+    }
+    return colorI;
+  };
+  #setIncong = (congArray, colorsArray) => {
+    let incCount = Math.floor(this.sampleCount * (this.percent / 100));
+    let colorIndex = 0;
+    for (let i = 0; i < incCount; i++) {
+      congArray[i].type = "I";
+      colorIndex = this.#nextIndexColor(colorIndex, colorsArray);
+      while (congArray[i].colorName === colorsArray[colorIndex].color) {
+        colorIndex = this.#nextIndexColor(colorIndex, colorsArray);
+      }
+      congArray[i].colorCode = colorsArray[colorIndex].codeColor;
+      congArray[i].colorName = colorsArray[colorIndex].color;
+    }
+    this.outSamples = congArray.sort(() => Math.random() - 0.5);
+  };
+  #setSampleStroop = (colorsArray) => {
+    let outSetSample = [];
+    let colorIndex = 0;
+    for (let i = 0; i < this.sampleCount; i++) {
+      if (colorIndex >= colorsArray.length) {
+        colorIndex = 1;
+      } else {
+        colorIndex = colorIndex + 1;
+      }
+
+      let stroopObject = {
+        type: "C",
+        colorText: colorsArray[colorIndex - 1].text,
+        colorName: colorsArray[colorIndex - 1].color,
+        colorCode: colorsArray[colorIndex - 1].codeColor,
+      };
+      outSetSample.push(stroopObject);
+    }
+    outSetSample = outSetSample.sort(() => Math.random() - 0.5);
+    this.#setIncong(outSetSample, colorsArray);
+  };
+  stroop = (colors) => {
+    return new Promise((resolve, reject) => {
+      if (colors.length !== 0) {
+        this.#setSampleStroop(colors);
+        resolve(this.outSamples);
+      } else {
+        reject(new Error("array of colors is empty!"));
+      }
+    });
+  };
+
+  #nextTargetIndex = (targetI, targetArray) => {
+    targetI++;
+    if (targetI >= targetArray.length) {
+      targetI = 0;
+    }
+    return targetI;
+  };
+  #setSampleCpt = (samplesArray, targetArray) => {
+    let outSetSamples = [];
+    let targetIndex = 0;
+    for (let i = 0; i < this.sampleCount; i++) {
+      if (targetIndex >= samplesArray.length) {
+        targetIndex = 1;
+      } else {
+        targetIndex = targetIndex + 1;
+      }
+
+      let cptObject = {
+        imageIndex: samplesArray[targetIndex - 1],
+        targetSample: 0,
+      };
+      outSetSamples.push(cptObject);
+    }
+    outSetSamples = outSetSamples.sort(() => Math.random() - 0.5);
+    this.#setTargetCpt(outSetSamples, targetArray);
+  };
+  #setTargetCpt = (setSampleArray, targetArray) => {
+    let targetIndex = 0;
+    let cptTarget = Math.floor(this.sampleCount * (this.percent / 100));
+    for (let i = 0; i < cptTarget; i++) {
+      targetIndex = this.#nextTargetIndex(targetIndex, targetArray);
+      setSampleArray[i].imageIndex = targetArray[targetIndex];
+      setSampleArray[i].targetSample = 1;
+    }
+    this.outSamples = setSampleArray.sort(() => Math.random() - 0.5);
+  };
+  cpt = (samples, target) => {
+    return new Promise((resolve, reject) => {
+      let intersectionArray = samples.filter((x) => target.includes(x));
+      if (intersectionArray.length === 0) {
+        this.#setSampleCpt(samples, target);
+        resolve(this.outSamples);
+      } else {
+        reject(new Error("samples and target have intersection!"));
+      }
+    });
+  };
+
+  #setTargetGonogo = (setsampleArray, targetArray) => {
+    let targetIndex = 0;
+    let gonogoTarget = Math.floor(this.sampleCount * (this.percent / 100));
+    for (let i = 0; i < gonogoTarget; i++) {
+      targetIndex = this.#nextTargetIndex(targetIndex, targetArray);
+      setsampleArray[i].text = targetArray[targetIndex];
+      setsampleArray[i].targetSample = 1;
+    }
+    this.outSamples = setsampleArray.sort(() => Math.random() - 0.5);
+  };
+  #setSampleGonogo = (samplesArray, targetArray) => {
+    let outSetSample = [];
+    let targetIndex = 0;
+    for (let i = 0; i < this.sampleCount; i++) {
+      if (targetIndex >= samplesArray.length) {
+        targetIndex = 1;
+      } else {
+        targetIndex = targetIndex + 1;
+      }
+
+      let gonogoObject = {
+        text: samplesArray[targetIndex - 1],
+        targetSample: 0,
+      };
+      outSetSample.push(gonogoObject);
+    }
+    outSetSample = outSetSample.sort(() => Math.random() - 0.5);
+    this.#setTargetGonogo(outSetSample, targetArray);
+  };
+  gonogo = (samples, target) => {
+    return new Promise((resolve, reject) => {
+      let intersectionArray = samples.filter((x) => target.includes(x));
+      if (intersectionArray.length === 0) {
+        this.#setSampleGonogo(samples, target);
+        resolve(this.outSamples);
+      } else {
+        reject(new Error("samples and target have intersection!"));
+      }
+    });
   };
 }
-
 exports.Generate = Generate;
