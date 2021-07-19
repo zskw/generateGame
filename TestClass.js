@@ -1,6 +1,6 @@
 const Generate = require("./Generate.js");
 
-const object = new Generate.Generate(100, 45);
+const object = new Generate.Generate(100, 20);
 
 object
   .cpt([0, 1], [2])
@@ -22,10 +22,10 @@ object
 
 object
   .stroop([
-    { IC: "C", text: "قرمز", color: "red", codeColor: "#B10D0D" },
-    { IC: "C", text: "زرد", color: "yellow", codeColor: "#F0E210" },
-    { IC: "C", text: "سبز", color: "green", codeColor: "#4CA810" },
-    { IC: "C", text: "آبی", color: "blue", codeColor: "#1042F0" },
+    { text: "قرمز", color: "red", codeColor: "#B10D0D" },
+    { text: "زرد", color: "yellow", codeColor: "#F0E210" },
+    { text: "سبز", color: "green", codeColor: "#4CA810" },
+    { text: "آبی", color: "blue", codeColor: "#1042F0" },
   ])
   .then((stroopOut) => {
     console.log(stroopOut);
@@ -35,7 +35,7 @@ object
   });
 
 object
-  .nback([1, 2, 3, 4, 5, 6, 7, 8, 9], 2, 40)
+  .nback([1, 2], 3, 4)
   .then((nbackOut) => {
     console.log(nbackOut);
   })
