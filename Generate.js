@@ -266,14 +266,32 @@ class Generate {
   };
   stroop = (colors) => {
     return new Promise((resolve, reject) => {
-      const colorsFilter = colors.filter(
-        (character) =>
-          character.color === "" ||
+      const colorsFilter = colors.filter((character) => {
+        return (
+          character.text === "" ||
           character.codeColor === "" ||
           character.color === ""
-      );
+        );
+      });
+
+      const colorsMap = colors.map((character) => {
+        if (Object.keys(character).length === 3) {
+          return true;
+        } else {
+          return false;
+        }
+      });
+      const colorsObject = colorsMap.filter((character) => {
+        return character === true;
+      });
       if (colorsFilter.length !== 0) {
         reject(new Error("field of array is empty!"));
+      } else if (colors.length < 2) {
+        reject(new Error("number of color is not enough!"));
+      } else if (colors.length < 2) {
+        reject(new Error("number of color is not enough!"));
+      } else if (colorsObject.length !== colors.length) {
+        reject(new Error("field of object is miss!"));
       } else if (colors.length !== 0) {
         this.#setSampleStroop(colors);
         resolve(this.outSamples);
