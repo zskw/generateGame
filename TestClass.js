@@ -35,7 +35,7 @@ object
   });
 
 object
-  .nback([1, 2,3], 2, 4)
+  .nback([5,6,7],1, 4)
   .then((nbackOut) => {
     console.log(nbackOut);
   })

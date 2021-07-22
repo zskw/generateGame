@@ -25,20 +25,27 @@ class Generate {
     }
 
     outSetSample = outSetSample.sort(() => Math.random() - 0.5);
-    this.#setTargetNback(outSetSample, nthNumber, maxTry);
+    this.#setTargetNback(outSetSample, nthNumber, maxTry, samplesArray);
   };
-  #setTargetNback = (setSamplesArray, nthNumber, maxTry) => {
+  #setTargetNback = (setSamplesArray, nthNumber, maxTry, samplesArray) => {
     let target = Math.floor(this.sampleCount * (this.percent / 100));
     let distance = Math.ceil(this.sampleCount / target);
+    let targetSoFar = this.#countTargetNback(setSamplesArray, nthNumber);
+    let difference = target - targetSoFar;
+    let cntSetTarget = 0;
     for (let i = nthNumber; i < this.sampleCount - distance; i += distance) {
       if (i + nthNumber < this.sampleCount) {
         if (setSamplesArray[i] !== setSamplesArray[i + nthNumber]) {
           setSamplesArray[i + nthNumber].text = setSamplesArray[i].text;
           setSamplesArray[i + nthNumber].targetSample = true;
+          cntSetTarget = cntSetTarget + 1;
+        }
+        if (cntSetTarget >= difference) {
+          break;
         }
       }
     }
-    this.#checkCountTarget(setSamplesArray, nthNumber, maxTry);
+    this.#checkCountTarget(setSamplesArray, nthNumber, maxTry, samplesArray);
   };
   #countTargetNback = (nbackArray, nthNumber) => {
     let cntTarget = 0;
@@ -51,7 +58,7 @@ class Generate {
     this.outSamples = nbackArray;
     return cntTarget;
   };
-  #checkCountTarget = (setTargetArray, nthNumber, maxTry) => {
+  #checkCountTarget = (setTargetArray, nthNumber, maxTry, samplesArray) => {
     return new Promise((resolve) => {
       let targetSoFar = this.#countTargetNback(setTargetArray, nthNumber);
       setTargetArray = this.outSamples;
@@ -70,7 +77,8 @@ class Generate {
             setTargetArray = this.#deleteTargetNback(
               setTargetArray,
               startPoint,
-              nthNumber
+              nthNumber,
+              samplesArray
             );
             goalDifference = goalDifference - 1;
           }
@@ -116,7 +124,12 @@ class Generate {
       resolve(this.outSamples);
     });
   };
-  #deleteTargetNback = (additionalTargets, startPoint, nthNumber) => {
+  #deleteTargetNback = (
+    additionalTargets,
+    startPoint,
+    nthNumber,
+    samplesArray
+  ) => {
     for (let i = startPoint; i < this.sampleCount; i++) {
       if (i + nthNumber < this.sampleCount) {
         if (
@@ -124,58 +137,22 @@ class Generate {
         ) {
           additionalTargets[i + nthNumber].targetSample = false;
           if (i < nthNumber) {
-            if (nthNumber > 1) {
-              if (additionalTargets[i].text !== additionalTargets[i + 1].text)
-                additionalTargets[i].text = additionalTargets[i + 1].text;
-              else {
-                if (additionalTargets[i].text !== 9)
-                  additionalTargets[i].text = additionalTargets[i].text + 1;
-                else additionalTargets[i].text = additionalTargets[i].text - 1;
-              }
-            } else {
-              if (additionalTargets[i].text === 9) {
-                additionalTargets[i].text = 8;
-              } else if (additionalTargets[i].text === 1) {
-                additionalTargets[i].text = 2;
-              } else {
-                additionalTargets[i].text = additionalTargets[i].text + 1;
-              }
-            }
+            const sampleFilter = samplesArray.filter((character) => {
+              return character !== additionalTargets[i].text;
+            });
+            let rndIndex = Math.floor(Math.random() * sampleFilter.length) + 1;
+            rndIndex = rndIndex - 1;
+            additionalTargets[i].text = sampleFilter[rndIndex];
           } else {
-            let tempRes =
-              additionalTargets[i - nthNumber].text - additionalTargets[i].text;
-
-            if (tempRes > 0) {
-              if (tempRes !== additionalTargets[i].text) {
-                additionalTargets[i].text = tempRes;
-              } else {
-                additionalTargets[i].text = tempRes + 1;
-              }
-            } else if (tempRes === 0) {
-              if (additionalTargets[i - nthNumber].text === 9) {
-                tempRes = 8;
-                additionalTargets[i].text = tempRes;
-              } else if (additionalTargets[i - nthNumber].text === 1) {
-                tempRes = 2;
-                additionalTargets[i].text = tempRes;
-              } else {
-                if (i + 1 < this.sampleCount) {
-                  if (
-                    additionalTargets[i].text !== additionalTargets[i + 1].text
-                  )
-                    additionalTargets[i].text = additionalTargets[i + 1].text;
-                  else {
-                    if (additionalTargets[i + 1].text === 9)
-                      additionalTargets[i].text = 8;
-                    else
-                      additionalTargets[i].text =
-                        additionalTargets[i + 1].text + 1;
-                  }
-                }
-              }
-            } else {
-              additionalTargets[i].text = -1 * tempRes;
-            }
+            const sampleFilter = samplesArray.filter((character) => {
+              return (
+                character !== additionalTargets[i - nthNumber].text &&
+                character !== additionalTargets[i].text
+              );
+            });
+            let rndIndex = Math.floor(Math.random() * sampleFilter.length) + 1;
+            rndIndex = rndIndex - 1;
+            additionalTargets[i].text = sampleFilter[rndIndex];
           }
 
           return additionalTargets;
@@ -208,8 +185,12 @@ class Generate {
     return new Promise((resolve, reject) => {
       if (samples.length === 0 || nth === 0) {
         reject(new Error("input is wrong!"));
+      } else if (nth < 0) {
+        reject(new Error("nth number is not correct"));
       } else if (this.sampleCount < 10) {
         reject(new Error("samples is not enough"));
+      } else if (samples.length < 3) {
+        reject(new Error("number of samples is not enough!"));
       } else if (samples.length !== 0) {
         if (this.percent > 60) {
           this.percent = 60;
